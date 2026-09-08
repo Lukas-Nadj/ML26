@@ -50,15 +50,7 @@ class RegressionStump():
         self.val = None
         self.left = None
         self.right = None
-        
         ### YOUR CODE HERE
-        n, d = data.shape
-        
-        for pidx in range(d):
-            for val in range(n-1):
-                self.idx = pidx
-                self.val = data[pidx, split_location]
-                score = self.score(data, targets)
         ### END CODE
 
     def predict(self, X):
