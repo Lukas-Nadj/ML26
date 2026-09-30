@@ -1,8 +1,8 @@
 import numpy as np
-from h1_util import numerical_grad_check
+from h1_util import numerical_grad_check, load_digits_test_data, load_digits_train_data
 
 def logistic(z):
-    """ 
+    """
     Helper function
     Computes the logistic function 1/(1+e^{-x}) to each entry in input vector z.
 
@@ -87,17 +87,20 @@ class LogisticRegressionClassifier():
         print("And then he meeped on my moop til I meep mooped")
         for i in range(epochs):
             # Randomize samples
-            X = np.random.permutation(X)
-            for i in range(X.shape[1]/batch_size):
-                X_batch = X[i*batch_size:(i+1)*batch_size]
-                y_batch = y[i*batch_size:(i+1)*batch_size]
+            X_zip_Y = np.concatenate([X,y[:, None]], axis=1)
+            Randomized_X_zip_Y = np.random.permutation(X_zip_Y)
 
-                prediction = self.predict(X_batch)
+            for i in range(0, X.shape[0], batch_size):
+                X_Y_batch = Randomized_X_zip_Y[i:i + batch_size]
+
+                X_batch = X_Y_batch[:, :-1]  # all columns except last
+                y_batch = X_Y_batch[:, -1]  # last column only
+
                 cost, grad = self.cost_grad(X_batch, y_batch, w)
-                g = 1/batch_size * np.sum(grad)
-                w -= lr * g
-            history.append(np.sum(cost))
-
+                w -= lr * grad
+            # Calculate loss using the entire training set
+            cost, _ = self.cost_grad(X, y, w)
+            history.append(cost)
 
         ### END CODE
         self.w = w
@@ -116,7 +119,7 @@ class LogisticRegressionClassifier():
         """
         out = np.ones(X.shape[0])
         ### YOUR CODE HERE
-        out = logistic(self.w.T @ X)
+        out = logistic(X @ self.w)
 
         for i in range(out.shape[0]):
             if out[i] > 0.5:
@@ -144,6 +147,7 @@ class LogisticRegressionClassifier():
             if logis[i] == y[i]:
                 s += 1
         s = s / y.shape[0]
+
         ### END CODE
         return s
 
@@ -181,10 +185,21 @@ def test_grad():
     numerical_grad_check(f, w)
     print('Test Success')
 
+def test_fit():
+    print('*' * 5, 'Testing  Fit')
+    print('Loading data...')
+    X_train, y_train = load_digits_train_data()
+
+    print('Initializing')
+    logistic_regression = LogisticRegressionClassifier()
+    logistic_regression.w = np.zeros(X_train.shape[1])
+
+    print("Score before fit: ",  logistic_regression.score(X_train, y_train))
+    logistic_regression.fit(X_train, y_train, None)
+    print("Score after fit: ", logistic_regression.score(X_train, y_train))
 
 if __name__ == '__main__':
     test_logistic()
     test_cost()
     test_grad()
-    fit()
-
+    test_fit()
