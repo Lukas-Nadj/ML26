@@ -1,5 +1,5 @@
 import numpy as np
-from h1_util import numerical_grad_check
+from h1_util import numerical_grad_check, load_digits_test_data, load_digits_train_data
 
 def softmax(X):
     """ 
@@ -24,6 +24,13 @@ def softmax(X):
     """
     res = np.zeros(X.shape)
     ### YOUR CODE HERE
+
+    for i, row in enumerate(X):
+        max_val = np.max(row)
+        log_sum_exp = np.log(np.sum(np.exp(row - max_val))) + max_val
+        res[i, :] = np.exp(row - log_sum_exp)
+
+    
     ### END CODE
     return res
 
@@ -63,6 +70,11 @@ class SoftmaxClassifier():
         grad = np.zeros(W.shape)*np.nan
         Yk = one_in_k_encoding(y, self.num_classes) # may help - otherwise you may remove it
         ### YOUR CODE HERE
+        grad = np.zeros(W.shape)
+        n = X.shape[0]
+        grad = -X.T @ (Yk - softmax(X @ W))
+        cost = -np.sum(Yk * np.log(softmax(X @ W))) / n
+        grad /= n
         ### END CODE
         return cost, grad
 
@@ -87,6 +99,25 @@ class SoftmaxClassifier():
         if W is None: W = np.zeros((X.shape[1], self.num_classes))
         history = []
         ### YOUR CODE HERE
+        n = X.shape[0]
+        for epoch in range(epochs):
+            # Shuffle the data
+            indices = np.random.permutation(n)
+            X_shuffled = X[indices]
+            Y_shuffled = Y[indices]
+
+            for start in range(0, n, batch_size):
+                end = min(start + batch_size, n)
+                X_batch = X_shuffled[start:end]
+                Y_batch = Y_shuffled[start:end]
+
+                cost, grad = self.cost_grad(X_batch, Y_batch, W)
+                W -= lr * grad
+
+            # Compute cost for the entire dataset after each epoch
+            total_cost, _ = self.cost_grad(X, Y, W)
+            history.append(total_cost)
+            print(f'Epoch {epoch + 1}/{epochs}, Cost: {total_cost}')
         ### END CODE
         self.W = W
         self.history = history
@@ -103,6 +134,8 @@ class SoftmaxClassifier():
         """
         out = 0
         ### YOUR CODE HERE
+        y_pred = self.predict(X)
+        out = np.mean(y_pred == Y)
         ### END CODE
         return out
 
@@ -116,6 +149,7 @@ class SoftmaxClassifier():
         """
         out = None
         ### YOUR CODE HERE   
+        out = np.argmax(softmax(X @ self.W), axis=1)
         ### END CODE
         return out
 
@@ -154,8 +188,32 @@ def test_grad():
     numerical_grad_check(f, w)
     print('Test Success')
 
+def test_cost():
+    print('*'*5, 'Testing Cost Function')
+    X = np.array([[1.0, 0.0], [1.0, 1.0], [1.0, -1.0]])    
+    w = np.ones((2, 3))
+    y = np.array([0, 1, 2])
+    scl = SoftmaxClassifier(num_classes=3)
+    cost, _ = scl.cost_grad(X, y, W=w)
+    expected = -np.log(1/3)
+    assert np.allclose(cost, expected), 'Cost Function Error:  Expected {0} - Got {1}'.format(expected, cost)
+    print('Test Success')
+
+def test_fit():
+    print('*'*5, 'Testing  Fit')
+    print('Loading data...')
+    X_train, y_train = load_digits_train_data()
+    scl = SoftmaxClassifier(num_classes=10)
+    print('Initializing')
+    scl.W = np.zeros((X_train.shape[1], 10))
+    print("Score before fit: ",  scl.score(X_train, y_train))
+    scl.fit(X_train, y_train, None)
+    print("Score after fit: ", scl.score(X_train, y_train))
+
     
 if __name__ == "__main__":
     test_encoding()
     test_softmax()
+    test_cost()
+    test_fit()
     test_grad()
